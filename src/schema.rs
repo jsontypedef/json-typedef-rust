@@ -14,11 +14,11 @@ pub struct Schema {
 #[derive(Debug, PartialEq)]
 pub enum SerdeConvertError {
     NonRootDefinitions,
+    InvalidForm,
     InvalidType(String),
     EmptyEnum,
     DuplicatedEnumValue(String),
     RepeatedProperty(String),
-    InvalidForm,
 }
 
 // Index of valid form "signatures" -- i.e., combinations of the presence of the
