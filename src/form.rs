@@ -15,16 +15,16 @@ pub enum Form {
     Discriminator(Discriminator),
 }
 
-#[derive(Debug, PartialEq)]
-pub struct Ref {
-    pub nullable: bool,
-    pub definition: String,
-}
-
 impl Default for Form {
     fn default() -> Self {
         Form::Empty
     }
+}
+
+#[derive(Debug, PartialEq)]
+pub struct Ref {
+    pub nullable: bool,
+    pub definition: String,
 }
 
 #[derive(Debug, PartialEq)]
@@ -102,6 +102,7 @@ pub struct Discriminator {
     pub tag: String,
     pub mapping: HashMap<String, Schema>,
 }
+
 #[cfg(test)]
 mod tests {
     use super::*;

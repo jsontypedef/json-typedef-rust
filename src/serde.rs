@@ -15,16 +15,16 @@ pub struct Schema {
     pub optional_properties: Option<HashMap<String, Schema>>,
     pub additional_properties: Option<bool>,
     pub values: Option<Box<Schema>>,
-    pub discriminator: Option<Discriminator>,
-    #[serde(flatten)]
-    pub extra: HashMap<String, Value>,
+    pub discriminator: Option<String>,
+    pub mapping: Option<HashMap<String, Schema>>,
+    pub metadata: Option<HashMap<String, Value>>,
 }
 
-#[derive(Serialize, Deserialize, Debug, Default, PartialEq)]
-pub struct Discriminator {
-    pub tag: String,
-    pub mapping: HashMap<String, Schema>,
-}
+// #[derive(Serialize, Deserialize, Debug, Default, PartialEq)]
+// pub struct Discriminator {
+//     pub tag: String,
+//     pub mapping: HashMap<String, Schema>,
+// }
 
 #[cfg(test)]
 mod tests {
@@ -118,9 +118,9 @@ mod tests {
                     type_: Some("uint32".to_owned()),
                     ..Default::default()
                 })),
-                discriminator: Some(super::Discriminator {
-                    tag: "foo".to_owned(),
-                    mapping: vec![(
+                discriminator: Some("foo".to_owned()),
+                mapping: Some(
+                    vec![(
                         "foo".to_owned(),
                         super::Schema {
                             type_: Some("uint32".to_owned()),
@@ -128,9 +128,9 @@ mod tests {
                         }
                     )]
                     .into_iter()
-                    .collect(),
-                }),
-                extra: vec![("foo".to_owned(), json!("bar"))].into_iter().collect(),
+                    .collect()
+                ),
+                metadata: Some(vec![("foo".to_owned(), json!("bar"))].into_iter().collect()),
             },
             serde_json::from_value(json!({
                 "definitions": {
@@ -159,15 +159,15 @@ mod tests {
                 "values": {
                     "type": "uint32",
                 },
-                "discriminator": {
-                    "tag": "foo",
-                    "mapping": {
-                        "foo": {
-                            "type": "uint32",
-                        },
+                "discriminator": "foo",
+                "mapping": {
+                    "foo": {
+                        "type": "uint32",
                     },
                 },
-                "foo": "bar",
+                "metadata": {
+                    "foo": "bar",
+                },
             }))
             .unwrap()
         );
