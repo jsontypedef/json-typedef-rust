@@ -99,7 +99,7 @@ pub struct Values {
 #[derive(Debug, PartialEq)]
 pub struct Discriminator {
     pub nullable: bool,
-    pub tag: String,
+    pub discriminator: String,
     pub mapping: HashMap<String, Schema>,
 }
 

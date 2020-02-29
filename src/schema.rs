@@ -15,13 +15,99 @@ pub struct Schema {
 pub enum SerdeConvertError {
     NonRootDefinitions,
     InvalidType(String),
+    EmptyEnum,
     DuplicatedEnumValue(String),
     RepeatedProperty(String),
     InvalidForm,
 }
 
+// Index of valid form "signatures" -- i.e., combinations of the presence of the
+// keywords (in order):
+//
+// ref type enum elements properties optionalProperties additionalProperties
+// values discriminator mapping
+//
+// The keywords "definitions", "nullable", and "metadata" are not included here,
+// because they would restrict nothing.
+const VALID_FORM_SIGNATURES: [[bool; 10]; 13] = [
+    // Empty form
+    [
+        false, false, false, false, false, false, false, false, false, false,
+    ],
+    // Ref form
+    [
+        true, false, false, false, false, false, false, false, false, false,
+    ],
+    // Type form
+    [
+        false, true, false, false, false, false, false, false, false, false,
+    ],
+    // Enum form
+    [
+        false, false, true, false, false, false, false, false, false, false,
+    ],
+    // Elements form
+    [
+        false, false, false, true, false, false, false, false, false, false,
+    ],
+    // Properties form -- properties or optional properties or both, and never
+    // additional properties on its own
+    [
+        false, false, false, false, true, false, false, false, false, false,
+    ],
+    [
+        false, false, false, false, false, true, false, false, false, false,
+    ],
+    [
+        false, false, false, false, true, true, false, false, false, false,
+    ],
+    [
+        false, false, false, false, true, false, true, false, false, false,
+    ],
+    [
+        false, false, false, false, false, true, true, false, false, false,
+    ],
+    [
+        false, false, false, false, true, true, true, false, false, false,
+    ],
+    // Values form
+    [
+        false, false, false, false, false, false, false, true, false, false,
+    ],
+    // Discriminator form
+    [
+        false, false, false, false, false, false, false, false, true, true,
+    ],
+];
+
 impl Schema {
     fn from_serde(root: bool, schema: serde::Schema) -> Result<Self, SerdeConvertError> {
+        let form_signature = [
+            schema.ref_.is_some(),
+            schema.type_.is_some(),
+            schema.enum_.is_some(),
+            schema.elements.is_some(),
+            schema.properties.is_some(),
+            schema.optional_properties.is_some(),
+            schema.additional_properties.is_some(),
+            schema.values.is_some(),
+            schema.discriminator.is_some(),
+            schema.mapping.is_some(),
+        ];
+
+        if !VALID_FORM_SIGNATURES.contains(&form_signature) {
+            return Err(SerdeConvertError::InvalidForm);
+        }
+
+        if !root && schema.definitions.is_some() {
+            return Err(SerdeConvertError::NonRootDefinitions);
+        }
+
+        let mut definitions = HashMap::new();
+        for (name, sub_schema) in schema.definitions.unwrap_or_default() {
+            definitions.insert(name, Self::from_serde(false, sub_schema)?);
+        }
+
         if let Some(ref_) = schema.ref_ {
             return Ok(Schema {
                 definitions: HashMap::new(),
@@ -47,6 +133,10 @@ impl Schema {
         }
 
         if let Some(enum_) = schema.enum_ {
+            if enum_.is_empty() {
+                return Err(SerdeConvertError::EmptyEnum);
+            }
+
             let mut values = HashSet::new();
             for val in enum_ {
                 if values.contains(&val) {
@@ -107,8 +197,36 @@ impl Schema {
             });
         }
 
+        if let Some(values) = schema.values {
+            return Ok(Schema {
+                definitions: HashMap::new(),
+                form: form::Form::Values(form::Values {
+                    nullable: schema.nullable.unwrap_or_default(),
+                    schema: Box::new(Self::from_serde(false, *values)?),
+                }),
+                metadata: HashMap::new(),
+            });
+        }
+
+        if let Some(discriminator) = schema.discriminator {
+            let mut mapping = HashMap::new();
+            for (name, sub_schema) in schema.mapping.unwrap() {
+                mapping.insert(name, Self::from_serde(false, sub_schema)?);
+            }
+
+            return Ok(Schema {
+                definitions: HashMap::new(),
+                form: form::Form::Discriminator(form::Discriminator {
+                    nullable: schema.nullable.unwrap_or_default(),
+                    discriminator,
+                    mapping,
+                }),
+                metadata: HashMap::new(),
+            });
+        }
+
         Ok(Schema {
-            definitions: HashMap::new(),
+            definitions,
             form: form::Form::Empty,
             metadata: schema.metadata.unwrap_or_default(),
         })
@@ -158,6 +276,42 @@ mod tests {
             .unwrap()
             .try_into(),
         )
+    }
+
+    #[test]
+    fn from_empty_with_definitions() {
+        assert_eq!(
+            Ok(Schema {
+                form: form::Form::Empty,
+                definitions: vec![("foo".to_owned(), Default::default())]
+                    .into_iter()
+                    .collect(),
+                ..Default::default()
+            }),
+            serde_json::from_value::<serde::Schema>(json!({
+                "definitions": {
+                    "foo": {}
+                }
+            }))
+            .unwrap()
+            .try_into(),
+        )
+    }
+
+    #[test]
+    fn from_empty_with_definitions_containing_definitions() {
+        let result: Result<Schema, SerdeConvertError> =
+            serde_json::from_value::<serde::Schema>(json!({
+                "definitions": {
+                    "foo": {
+                        "definitions": {}
+                    }
+                }
+            }))
+            .unwrap()
+            .try_into();
+
+        assert_eq!(Err(SerdeConvertError::NonRootDefinitions), result)
     }
 
     #[test]
@@ -303,6 +457,18 @@ mod tests {
             Err(SerdeConvertError::DuplicatedEnumValue("foo".to_owned())),
             result
         )
+    }
+
+    #[test]
+    fn from_enum_with_empty_array() {
+        let result: Result<Schema, SerdeConvertError> =
+            serde_json::from_value::<serde::Schema>(json!({
+                "enum": [],
+            }))
+            .unwrap()
+            .try_into();
+
+        assert_eq!(Err(SerdeConvertError::EmptyEnum), result)
     }
 
     #[test]
@@ -503,5 +669,115 @@ mod tests {
             Err(SerdeConvertError::RepeatedProperty("foo".to_owned())),
             result
         )
+    }
+
+    #[test]
+    fn from_values() {
+        assert_eq!(
+            Ok(Schema {
+                form: form::Form::Values(form::Values {
+                    nullable: false,
+                    schema: Default::default(),
+                }),
+                ..Default::default()
+            }),
+            serde_json::from_value::<serde::Schema>(json!({
+                "values": {},
+            }))
+            .unwrap()
+            .try_into(),
+        )
+    }
+
+    #[test]
+    fn from_values_with_nullable() {
+        assert_eq!(
+            Ok(Schema {
+                form: form::Form::Values(form::Values {
+                    nullable: true,
+                    schema: Default::default(),
+                }),
+                ..Default::default()
+            }),
+            serde_json::from_value::<serde::Schema>(json!({
+                "values": {},
+                "nullable": true,
+            }))
+            .unwrap()
+            .try_into(),
+        )
+    }
+
+    #[test]
+    fn from_discriminator() {
+        assert_eq!(
+            Ok(Schema {
+                form: form::Form::Discriminator(form::Discriminator {
+                    nullable: false,
+                    discriminator: "foo".to_owned(),
+                    mapping: vec![("bar".to_owned(), Default::default())]
+                        .into_iter()
+                        .collect(),
+                }),
+                ..Default::default()
+            }),
+            serde_json::from_value::<serde::Schema>(json!({
+                "discriminator": "foo",
+                "mapping": {
+                    "bar": {}
+                }
+            }))
+            .unwrap()
+            .try_into(),
+        )
+    }
+
+    #[test]
+    fn from_discriminator_with_nullable() {
+        assert_eq!(
+            Ok(Schema {
+                form: form::Form::Discriminator(form::Discriminator {
+                    nullable: true,
+                    discriminator: "foo".to_owned(),
+                    mapping: vec![("bar".to_owned(), Default::default())]
+                        .into_iter()
+                        .collect(),
+                }),
+                ..Default::default()
+            }),
+            serde_json::from_value::<serde::Schema>(json!({
+                "discriminator": "foo",
+                "mapping": {
+                    "bar": {}
+                },
+                "nullable": true,
+            }))
+            .unwrap()
+            .try_into(),
+        )
+    }
+
+    #[test]
+    fn from_invalid_forms() {
+        let invalid_forms = vec![
+            json!({"ref": "foo", "type": "uint32"}),
+            json!({"type": "uint32", "enum": ["foo"]}),
+            json!({"enum": ["foo"], "elements": {}}),
+            json!({"elements": {}, "properties": {}}),
+            json!({"elements": {}, "optionalProperties": {}}),
+            json!({"elements": {}, "additionalProperties": true}),
+            json!({"properties": {}, "values": {}}),
+            json!({"values": {}, "discriminator": "foo"}),
+            json!({"discriminator": "foo"}),
+            json!({"mapping": {}}),
+        ];
+
+        for invalid_form in invalid_forms {
+            let result: Result<Schema, SerdeConvertError> =
+                serde_json::from_value::<serde::Schema>(invalid_form)
+                    .unwrap()
+                    .try_into();
+            assert_eq!(Err(SerdeConvertError::InvalidForm), result);
+        }
     }
 }
