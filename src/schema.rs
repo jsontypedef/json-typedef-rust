@@ -110,25 +110,25 @@ impl Schema {
 
         if let Some(ref_) = schema.ref_ {
             return Ok(Schema {
-                definitions: HashMap::new(),
+                definitions,
                 form: form::Form::Ref(form::Ref {
                     nullable: schema.nullable.unwrap_or_default(),
                     definition: ref_,
                 }),
-                metadata: HashMap::new(),
+                metadata: schema.metadata.unwrap_or_default(),
             });
         }
 
         if let Some(type_) = schema.type_ {
             return Ok(Schema {
-                definitions: HashMap::new(),
+                definitions,
                 form: form::Form::Type(form::Type {
                     nullable: schema.nullable.unwrap_or_default(),
                     type_value: type_
                         .parse()
                         .map_err(|_| SerdeConvertError::InvalidType(type_))?,
                 }),
-                metadata: HashMap::new(),
+                metadata: schema.metadata.unwrap_or_default(),
             });
         }
 
@@ -147,23 +147,23 @@ impl Schema {
             }
 
             return Ok(Schema {
-                definitions: HashMap::new(),
+                definitions,
                 form: form::Form::Enum(form::Enum {
                     nullable: schema.nullable.unwrap_or_default(),
                     values,
                 }),
-                metadata: HashMap::new(),
+                metadata: schema.metadata.unwrap_or_default(),
             });
         }
 
         if let Some(elements) = schema.elements {
             return Ok(Schema {
-                definitions: HashMap::new(),
+                definitions,
                 form: form::Form::Elements(form::Elements {
                     nullable: schema.nullable.unwrap_or_default(),
                     schema: Box::new(Self::from_serde(false, *elements)?),
                 }),
-                metadata: HashMap::new(),
+                metadata: schema.metadata.unwrap_or_default(),
             });
         }
 
@@ -185,7 +185,7 @@ impl Schema {
             }
 
             return Ok(Schema {
-                definitions: HashMap::new(),
+                definitions,
                 form: form::Form::Properties(form::Properties {
                     nullable: schema.nullable.unwrap_or_default(),
                     required,
@@ -193,18 +193,18 @@ impl Schema {
                     additional: schema.additional_properties.unwrap_or_default(),
                     has_required,
                 }),
-                metadata: HashMap::new(),
+                metadata: schema.metadata.unwrap_or_default(),
             });
         }
 
         if let Some(values) = schema.values {
             return Ok(Schema {
-                definitions: HashMap::new(),
+                definitions,
                 form: form::Form::Values(form::Values {
                     nullable: schema.nullable.unwrap_or_default(),
                     schema: Box::new(Self::from_serde(false, *values)?),
                 }),
-                metadata: HashMap::new(),
+                metadata: schema.metadata.unwrap_or_default(),
             });
         }
 
@@ -215,13 +215,13 @@ impl Schema {
             }
 
             return Ok(Schema {
-                definitions: HashMap::new(),
+                definitions,
                 form: form::Form::Discriminator(form::Discriminator {
                     nullable: schema.nullable.unwrap_or_default(),
                     discriminator,
                     mapping,
                 }),
-                metadata: HashMap::new(),
+                metadata: schema.metadata.unwrap_or_default(),
             });
         }
 
