@@ -1,0 +1,3 @@
+[submodule "json-typedef-spec"]
+	path = json-typedef-spec
+	url = git@github.com:ucarion/json-typedef-spec.git
