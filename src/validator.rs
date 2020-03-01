@@ -121,6 +121,23 @@ impl Vm {
                     self.pop_schema_token();
                 }
             }
+            form::Form::Elements(form::Elements { nullable, schema }) => {
+                if !*nullable || !instance.is_null() {
+                    self.push_schema_token("elements");
+
+                    if let Some(arr) = instance.as_array() {
+                        for (i, sub_instance) in arr.iter().enumerate() {
+                            self.push_instance_token(&i.to_string());
+                            self.validate(root, schema, sub_instance)?;
+                            self.pop_instance_token();
+                        }
+                    } else {
+                        self.push_error()?;
+                    }
+
+                    self.pop_schema_token();
+                }
+            }
             _ => unimplemented!(),
         };
 
@@ -161,7 +178,15 @@ impl Vm {
     }
 
     fn pop_schema_token(&mut self) {
-        self.schema_tokens.last_mut().unwrap().pop();
+        self.schema_tokens.last_mut().unwrap().pop().unwrap();
+    }
+
+    fn push_instance_token(&mut self, token: &str) {
+        self.instance_tokens.push(token.to_owned());
+    }
+
+    fn pop_instance_token(&mut self) {
+        self.instance_tokens.pop().unwrap();
     }
 }
 
