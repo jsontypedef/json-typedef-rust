@@ -10,15 +10,16 @@ edition = "2018"
 cargo-fuzz = true
 
 [dependencies]
-libfuzzer-sys = "0.3"
+libfuzzer-sys = "0.3.1"
 
 [dependencies.jtd]
 path = ".."
+features = ["fuzz"]
 
 # Prevent this from interfering with workspaces
 [workspace]
 members = ["."]
 
 [[bin]]
-name = "fuzz_target_1"
-path = "fuzz_targets/fuzz_target_1.rs"
+name = "serde_schema_try_into"
+path = "fuzz_targets/serde_schema_try_into.rs"

@@ -4,6 +4,10 @@ version = "0.1.0"
 authors = ["JSON Type Definition Contributors"]
 edition = "2018"
 
+[features]
+fuzz = ["arbitrary"]
+
 [dependencies]
+arbitrary = { version = "0.4.0", features = ["derive"], optional = true }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
