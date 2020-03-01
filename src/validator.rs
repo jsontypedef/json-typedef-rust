@@ -63,6 +63,17 @@ impl Vm {
     ) -> Result<(), VmValidateError> {
         match &schema.form {
             form::Form::Empty => {}
+            form::Form::Ref(form::Ref {
+                nullable,
+                definition,
+            }) => {
+                if !*nullable || !instance.is_null() {
+                    self.schema_tokens
+                        .push(vec!["definitions".to_owned(), definition.clone()]);
+                    self.validate(root, &root.definitions[definition], instance)?;
+                    self.schema_tokens.pop();
+                }
+            }
             form::Form::Type(form::Type {
                 nullable,
                 type_value,
