@@ -138,6 +138,86 @@ impl Vm {
                     self.pop_schema_token();
                 }
             }
+            form::Form::Properties(form::Properties {
+                nullable,
+                required,
+                optional,
+                additional,
+                has_required,
+            }) => {
+                if !*nullable || !instance.is_null() {
+                    if let Some(obj) = instance.as_object() {
+                        self.push_schema_token("properties");
+                        for (name, sub_schema) in required {
+                            self.push_schema_token(name);
+                            if let Some(sub_instance) = obj.get(name) {
+                                self.push_instance_token(name);
+                                self.validate(root, sub_schema, sub_instance)?;
+                                self.pop_instance_token();
+                            } else {
+                                self.push_error()?;
+                            }
+                            self.pop_schema_token();
+                        }
+                        self.pop_schema_token();
+
+                        self.push_schema_token("optionalProperties");
+                        for (name, sub_schema) in optional {
+                            self.push_schema_token(name);
+                            if let Some(sub_instance) = obj.get(name) {
+                                self.push_instance_token(name);
+                                self.validate(root, sub_schema, sub_instance)?;
+                                self.pop_instance_token();
+                            }
+                            self.pop_schema_token();
+                        }
+                        self.pop_schema_token();
+
+                        if !*additional {
+                            self.push_schema_token(if *has_required {
+                                "properties"
+                            } else {
+                                "optionalProperties"
+                            });
+
+                            for name in obj.keys() {
+                                if !required.contains_key(name) && !optional.contains_key(name) {
+                                    self.push_instance_token(name);
+                                    self.push_error()?;
+                                    self.pop_instance_token();
+                                }
+                            }
+
+                            self.pop_schema_token();
+                        }
+                    } else {
+                        self.push_schema_token(if *has_required {
+                            "properties"
+                        } else {
+                            "optionalProperties"
+                        });
+                        self.push_error()?;
+                        self.pop_schema_token();
+                    }
+                }
+            }
+            form::Form::Values(form::Values { nullable, schema }) => {
+                if !*nullable || !instance.is_null() {
+                    self.push_schema_token("values");
+
+                    if let Some(obj) = instance.as_object() {
+                        for (name, sub_instance) in obj {
+                            self.push_instance_token(name);
+                            self.validate(root, schema, sub_instance)?;
+                            self.pop_instance_token();
+                        }
+                    } else {
+                        self.push_error()?;
+                    }
+
+                    self.pop_schema_token();
+                }
+            }
             _ => unimplemented!(),
         };
 
@@ -194,7 +274,7 @@ impl Vm {
 mod tests {
     use super::*;
     use serde::{Deserialize, Serialize};
-    use std::collections::HashMap;
+    use std::collections::{HashMap, HashSet};
     use std::convert::TryInto;
 
     #[test]
@@ -206,7 +286,7 @@ mod tests {
             errors: Vec<TestCaseError>,
         }
 
-        #[derive(Serialize, Deserialize, PartialEq, Debug)]
+        #[derive(Serialize, Deserialize, PartialEq, Eq, Hash, Debug)]
         #[serde(rename_all = "camelCase")]
         struct TestCaseError {
             instance_path: Vec<String>,
@@ -228,7 +308,7 @@ mod tests {
                 max_errors: None,
             };
 
-            let errors: Vec<_> = validator
+            let errors: HashSet<_> = validator
                 .validate(&schema, &test_case.instance)
                 .expect(&format!("validating: {}", name))
                 .into_iter()
@@ -239,7 +319,8 @@ mod tests {
                 .collect();
 
             assert_eq!(
-                test_case.errors, errors,
+                test_case.errors.into_iter().collect::<HashSet<_>>(),
+                errors,
                 "wrong set of errors returned for test case: {}",
                 name
             );
