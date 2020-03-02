@@ -2,7 +2,7 @@ use crate::form;
 use crate::serde;
 use serde_json::Value;
 use std::collections::{HashMap, HashSet};
-use std::convert::TryFrom;
+use std::convert::{TryFrom, TryInto};
 
 #[derive(Debug, Default, PartialEq)]
 pub struct Schema {
@@ -157,8 +157,12 @@ impl Schema {
 
         Ok(())
     }
+}
 
-    fn from_serde(schema: serde::Schema) -> Result<Self, SerdeConvertError> {
+impl TryFrom<serde::Schema> for Schema {
+    type Error = SerdeConvertError;
+
+    fn try_from(schema: serde::Schema) -> Result<Self, Self::Error> {
         let form_signature = [
             schema.ref_.is_some(),
             schema.type_.is_some(),
@@ -176,13 +180,9 @@ impl Schema {
             return Err(SerdeConvertError::InvalidForm);
         }
 
-        // if !root && schema.definitions.is_some() {
-        //     return Err(SerdeConvertError::NonRootDefinitions);
-        // }
-
         let mut definitions = HashMap::new();
         for (name, sub_schema) in schema.definitions.unwrap_or_default() {
-            definitions.insert(name, Self::from_serde(sub_schema)?);
+            definitions.insert(name, sub_schema.try_into()?);
         }
 
         if let Some(ref_) = schema.ref_ {
@@ -210,10 +210,6 @@ impl Schema {
         }
 
         if let Some(enum_) = schema.enum_ {
-            // if enum_.is_empty() {
-            //     return Err(SerdeConvertError::EmptyEnum);
-            // }
-
             let mut values = HashSet::new();
             for val in enum_ {
                 if values.contains(&val) {
@@ -238,7 +234,7 @@ impl Schema {
                 definitions,
                 form: form::Form::Elements(form::Elements {
                     nullable: schema.nullable.unwrap_or_default(),
-                    schema: Box::new(Self::from_serde(*elements)?),
+                    schema: Box::new((*elements).try_into()?),
                 }),
                 metadata: schema.metadata.unwrap_or_default(),
             });
@@ -249,16 +245,12 @@ impl Schema {
 
             let mut required = HashMap::new();
             for (name, sub_schema) in schema.properties.unwrap_or_default() {
-                required.insert(name, Self::from_serde(sub_schema)?);
+                required.insert(name, sub_schema.try_into()?);
             }
 
             let mut optional = HashMap::new();
             for (name, sub_schema) in schema.optional_properties.unwrap_or_default() {
-                // if required.contains_key(&name) {
-                //     return Err(SerdeConvertError::RepeatedProperty(name));
-                // }
-
-                optional.insert(name, Self::from_serde(sub_schema)?);
+                optional.insert(name, sub_schema.try_into()?);
             }
 
             return Ok(Schema {
@@ -279,7 +271,7 @@ impl Schema {
                 definitions,
                 form: form::Form::Values(form::Values {
                     nullable: schema.nullable.unwrap_or_default(),
-                    schema: Box::new(Self::from_serde(*values)?),
+                    schema: Box::new((*values).try_into()?),
                 }),
                 metadata: schema.metadata.unwrap_or_default(),
             });
@@ -288,7 +280,7 @@ impl Schema {
         if let Some(discriminator) = schema.discriminator {
             let mut mapping = HashMap::new();
             for (name, sub_schema) in schema.mapping.unwrap() {
-                mapping.insert(name, Self::from_serde(sub_schema)?);
+                mapping.insert(name, sub_schema.try_into()?);
             }
 
             return Ok(Schema {
@@ -307,14 +299,6 @@ impl Schema {
             form: form::Form::Empty,
             metadata: schema.metadata.unwrap_or_default(),
         })
-    }
-}
-
-impl TryFrom<serde::Schema> for Schema {
-    type Error = SerdeConvertError;
-
-    fn try_from(schema: serde::Schema) -> Result<Self, Self::Error> {
-        Self::from_serde(schema)
     }
 }
 
