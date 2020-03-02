@@ -9,13 +9,13 @@ pub struct Validator {
     pub max_errors: Option<usize>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub struct ValidationError {
     pub instance_path: Vec<String>,
     pub schema_path: Vec<String>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum ValidateError {
     MaxDepthExceeded,
 }
@@ -69,6 +69,10 @@ impl Vm {
                 definition,
             }) => {
                 if !*nullable || !instance.is_null() {
+                    if self.max_depth == Some(self.schema_tokens.len()) {
+                        return Err(VmValidateError::MaxDepthExceeded);
+                    }
+
                     self.schema_tokens
                         .push(vec!["definitions".to_owned(), definition.clone()]);
                     self.validate(root, &root.definitions[definition], None, instance)?;
@@ -304,7 +308,11 @@ impl Vm {
             schema_path: self.schema_tokens.last().unwrap().clone(),
         });
 
-        Ok(())
+        if self.max_errors == Some(self.errors.len()) {
+            Err(VmValidateError::MaxErrorsReached)
+        } else {
+            Ok(())
+        }
     }
 
     fn push_schema_token(&mut self, token: &str) {
@@ -330,9 +338,57 @@ impl Vm {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::SerdeSchema;
     use serde::{Deserialize, Serialize};
+    use serde_json::json;
     use std::collections::{HashMap, HashSet};
     use std::convert::TryInto;
+
+    #[test]
+    fn max_depth() {
+        let schema: Schema = serde_json::from_value::<SerdeSchema>(json!({
+            "definitions": {
+                "loop": { "ref": "loop" },
+            },
+            "ref": "loop",
+        }))
+        .unwrap()
+        .try_into()
+        .unwrap();
+
+        let validator = Validator {
+            max_depth: Some(3),
+            max_errors: None,
+        };
+        assert_eq!(
+            Err(ValidateError::MaxDepthExceeded),
+            validator.validate(&schema, &json!(null))
+        );
+    }
+
+    #[test]
+    fn max_errors() {
+        let schema: Schema = serde_json::from_value::<SerdeSchema>(json!({
+            "elements": {
+                "type": "string",
+            },
+        }))
+        .unwrap()
+        .try_into()
+        .unwrap();
+
+        let validator = Validator {
+            max_depth: None,
+            max_errors: Some(3),
+        };
+        assert_eq!(
+            3,
+            validator
+                .validate(&schema, &json!([null, null, null, null, null]))
+                .unwrap()
+                .len(),
+        );
+    }
 
     #[test]
     fn spec_validation_suite() {
