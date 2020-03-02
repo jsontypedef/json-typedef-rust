@@ -13,12 +13,18 @@ pub struct Schema {
 
 #[derive(Debug, PartialEq)]
 pub enum SerdeConvertError {
-    NonRootDefinitions,
     InvalidForm,
     InvalidType(String),
-    EmptyEnum,
     DuplicatedEnumValue(String),
+}
+
+#[derive(Debug, PartialEq)]
+pub enum ValidateError {
+    NoSuchDefinition(String),
+    NonRootDefinitions,
+    EmptyEnum,
     RepeatedProperty(String),
+    MappingNotPropertiesForm,
 }
 
 // Index of valid form "signatures" -- i.e., combinations of the presence of the
@@ -81,7 +87,78 @@ const VALID_FORM_SIGNATURES: [[bool; 10]; 13] = [
 ];
 
 impl Schema {
-    fn from_serde(root: bool, schema: serde::Schema) -> Result<Self, SerdeConvertError> {
+    pub fn validate(&self) -> Result<(), ValidateError> {
+        self.validate_with_root(None)
+    }
+
+    fn validate_with_root(&self, root: Option<&Self>) -> Result<(), ValidateError> {
+        if root.is_none() && !self.definitions.is_empty() {
+            return Err(ValidateError::NonRootDefinitions);
+        }
+
+        match &self.form {
+            form::Form::Empty | form::Form::Type(_) => {}
+            form::Form::Enum(form::Enum { values, .. }) => {
+                if values.is_empty() {
+                    return Err(ValidateError::EmptyEnum);
+                }
+            }
+            form::Form::Ref(form::Ref { definition, .. }) => {
+                if !root.unwrap_or(&self).definitions.contains_key(definition) {
+                    return Err(ValidateError::NoSuchDefinition(definition.clone()));
+                }
+            }
+            form::Form::Elements(form::Elements { schema, .. }) => {
+                schema.validate_with_root(root)?;
+            }
+            form::Form::Properties(form::Properties {
+                required, optional, ..
+            }) => {
+                for schema in required.values() {
+                    schema.validate_with_root(root)?;
+                }
+
+                for (name, schema) in optional {
+                    if required.contains_key(name) {
+                        return Err(ValidateError::RepeatedProperty(name.clone()));
+                    }
+
+                    schema.validate_with_root(root)?;
+                }
+            }
+            form::Form::Values(form::Values { schema, .. }) => {
+                schema.validate_with_root(root)?;
+            }
+            form::Form::Discriminator(form::Discriminator {
+                discriminator,
+                mapping,
+                ..
+            }) => {
+                for schema in mapping.values() {
+                    schema.validate_with_root(root)?;
+
+                    match &schema.form {
+                        form::Form::Properties(form::Properties {
+                            required, optional, ..
+                        }) => {
+                            if required.contains_key(discriminator)
+                                || optional.contains_key(discriminator)
+                            {
+                                return Err(ValidateError::RepeatedProperty(discriminator.clone()));
+                            }
+                        }
+                        _ => {
+                            return Err(ValidateError::MappingNotPropertiesForm);
+                        }
+                    }
+                }
+            }
+        };
+
+        Ok(())
+    }
+
+    fn from_serde(schema: serde::Schema) -> Result<Self, SerdeConvertError> {
         let form_signature = [
             schema.ref_.is_some(),
             schema.type_.is_some(),
@@ -99,13 +176,13 @@ impl Schema {
             return Err(SerdeConvertError::InvalidForm);
         }
 
-        if !root && schema.definitions.is_some() {
-            return Err(SerdeConvertError::NonRootDefinitions);
-        }
+        // if !root && schema.definitions.is_some() {
+        //     return Err(SerdeConvertError::NonRootDefinitions);
+        // }
 
         let mut definitions = HashMap::new();
         for (name, sub_schema) in schema.definitions.unwrap_or_default() {
-            definitions.insert(name, Self::from_serde(false, sub_schema)?);
+            definitions.insert(name, Self::from_serde(sub_schema)?);
         }
 
         if let Some(ref_) = schema.ref_ {
@@ -133,9 +210,9 @@ impl Schema {
         }
 
         if let Some(enum_) = schema.enum_ {
-            if enum_.is_empty() {
-                return Err(SerdeConvertError::EmptyEnum);
-            }
+            // if enum_.is_empty() {
+            //     return Err(SerdeConvertError::EmptyEnum);
+            // }
 
             let mut values = HashSet::new();
             for val in enum_ {
@@ -161,7 +238,7 @@ impl Schema {
                 definitions,
                 form: form::Form::Elements(form::Elements {
                     nullable: schema.nullable.unwrap_or_default(),
-                    schema: Box::new(Self::from_serde(false, *elements)?),
+                    schema: Box::new(Self::from_serde(*elements)?),
                 }),
                 metadata: schema.metadata.unwrap_or_default(),
             });
@@ -172,16 +249,16 @@ impl Schema {
 
             let mut required = HashMap::new();
             for (name, sub_schema) in schema.properties.unwrap_or_default() {
-                required.insert(name, Self::from_serde(false, sub_schema)?);
+                required.insert(name, Self::from_serde(sub_schema)?);
             }
 
             let mut optional = HashMap::new();
             for (name, sub_schema) in schema.optional_properties.unwrap_or_default() {
-                if required.contains_key(&name) {
-                    return Err(SerdeConvertError::RepeatedProperty(name));
-                }
+                // if required.contains_key(&name) {
+                //     return Err(SerdeConvertError::RepeatedProperty(name));
+                // }
 
-                optional.insert(name, Self::from_serde(false, sub_schema)?);
+                optional.insert(name, Self::from_serde(sub_schema)?);
             }
 
             return Ok(Schema {
@@ -202,7 +279,7 @@ impl Schema {
                 definitions,
                 form: form::Form::Values(form::Values {
                     nullable: schema.nullable.unwrap_or_default(),
-                    schema: Box::new(Self::from_serde(false, *values)?),
+                    schema: Box::new(Self::from_serde(*values)?),
                 }),
                 metadata: schema.metadata.unwrap_or_default(),
             });
@@ -211,7 +288,7 @@ impl Schema {
         if let Some(discriminator) = schema.discriminator {
             let mut mapping = HashMap::new();
             for (name, sub_schema) in schema.mapping.unwrap() {
-                mapping.insert(name, Self::from_serde(false, sub_schema)?);
+                mapping.insert(name, Self::from_serde(sub_schema)?);
             }
 
             return Ok(Schema {
@@ -237,7 +314,7 @@ impl TryFrom<serde::Schema> for Schema {
     type Error = SerdeConvertError;
 
     fn try_from(schema: serde::Schema) -> Result<Self, Self::Error> {
-        Self::from_serde(true, schema)
+        Self::from_serde(schema)
     }
 }
 
@@ -298,21 +375,21 @@ mod tests {
         )
     }
 
-    #[test]
-    fn from_empty_with_definitions_containing_definitions() {
-        let result: Result<Schema, SerdeConvertError> =
-            serde_json::from_value::<serde::Schema>(json!({
-                "definitions": {
-                    "foo": {
-                        "definitions": {}
-                    }
-                }
-            }))
-            .unwrap()
-            .try_into();
+    // #[test]
+    // fn from_empty_with_definitions_containing_definitions() {
+    //     let result: Result<Schema, SerdeConvertError> =
+    //         serde_json::from_value::<serde::Schema>(json!({
+    //             "definitions": {
+    //                 "foo": {
+    //                     "definitions": {}
+    //                 }
+    //             }
+    //         }))
+    //         .unwrap()
+    //         .try_into();
 
-        assert_eq!(Err(SerdeConvertError::NonRootDefinitions), result)
-    }
+    //     assert_eq!(Err(SerdeConvertError::NonRootDefinitions), result)
+    // }
 
     #[test]
     fn from_ref() {
@@ -459,17 +536,17 @@ mod tests {
         )
     }
 
-    #[test]
-    fn from_enum_with_empty_array() {
-        let result: Result<Schema, SerdeConvertError> =
-            serde_json::from_value::<serde::Schema>(json!({
-                "enum": [],
-            }))
-            .unwrap()
-            .try_into();
+    // #[test]
+    // fn from_enum_with_empty_array() {
+    //     let result: Result<Schema, SerdeConvertError> =
+    //         serde_json::from_value::<serde::Schema>(json!({
+    //             "enum": [],
+    //         }))
+    //         .unwrap()
+    //         .try_into();
 
-        assert_eq!(Err(SerdeConvertError::EmptyEnum), result)
-    }
+    //     assert_eq!(Err(SerdeConvertError::EmptyEnum), result)
+    // }
 
     #[test]
     fn from_elements() {
@@ -650,26 +727,26 @@ mod tests {
         )
     }
 
-    #[test]
-    fn from_properties_with_repeated_keys() {
-        let result: Result<Schema, SerdeConvertError> =
-            serde_json::from_value::<serde::Schema>(json!({
-                "properties": {
-                    "foo": {},
-                },
-                "optionalProperties": {
-                    "foo": {},
-                },
-                "nullable": true,
-            }))
-            .unwrap()
-            .try_into();
+    // #[test]
+    // fn from_properties_with_repeated_keys() {
+    //     let result: Result<Schema, SerdeConvertError> =
+    //         serde_json::from_value::<serde::Schema>(json!({
+    //             "properties": {
+    //                 "foo": {},
+    //             },
+    //             "optionalProperties": {
+    //                 "foo": {},
+    //             },
+    //             "nullable": true,
+    //         }))
+    //         .unwrap()
+    //         .try_into();
 
-        assert_eq!(
-            Err(SerdeConvertError::RepeatedProperty("foo".to_owned())),
-            result
-        )
-    }
+    //     assert_eq!(
+    //         Err(SerdeConvertError::RepeatedProperty("foo".to_owned())),
+    //         result
+    //     )
+    // }
 
     #[test]
     fn from_values() {
@@ -778,6 +855,27 @@ mod tests {
                     .unwrap()
                     .try_into();
             assert_eq!(Err(SerdeConvertError::InvalidForm), result);
+        }
+    }
+
+    #[test]
+    fn spec_invalid_schemas_suite() {
+        let test_cases: HashMap<String, Value> = serde_json::from_str(include_str!(
+            "../json-typedef-spec/tests/invalid_schemas.json"
+        ))
+        .unwrap();
+
+        for (name, invalid_schema) in test_cases {
+            dbg!(&invalid_schema);
+            if let Ok(schema) = serde_json::from_value::<serde::Schema>(invalid_schema) {
+                dbg!(&schema);
+                let result: Result<Schema, SerdeConvertError> = schema.try_into();
+
+                if let Ok(schema) = result {
+                    dbg!(&name, &schema);
+                    assert!(schema.validate().is_err(), name);
+                }
+            }
         }
     }
 }
