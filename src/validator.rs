@@ -34,7 +34,7 @@ impl Validator {
             errors: vec![],
         };
 
-        match vm.validate(schema, schema, instance) {
+        match vm.validate(schema, schema, None, instance) {
             Ok(()) | Err(VmValidateError::MaxErrorsReached) => Ok(vm.errors),
             Err(VmValidateError::MaxDepthExceeded) => Err(ValidateError::MaxDepthExceeded),
         }
@@ -59,6 +59,7 @@ impl Vm {
         &mut self,
         root: &Schema,
         schema: &Schema,
+        parent_tag: Option<&str>,
         instance: &Value,
     ) -> Result<(), VmValidateError> {
         match &schema.form {
@@ -70,7 +71,7 @@ impl Vm {
                 if !*nullable || !instance.is_null() {
                     self.schema_tokens
                         .push(vec!["definitions".to_owned(), definition.clone()]);
-                    self.validate(root, &root.definitions[definition], instance)?;
+                    self.validate(root, &root.definitions[definition], None, instance)?;
                     self.schema_tokens.pop();
                 }
             }
@@ -128,7 +129,7 @@ impl Vm {
                     if let Some(arr) = instance.as_array() {
                         for (i, sub_instance) in arr.iter().enumerate() {
                             self.push_instance_token(&i.to_string());
-                            self.validate(root, schema, sub_instance)?;
+                            self.validate(root, schema, None, sub_instance)?;
                             self.pop_instance_token();
                         }
                     } else {
@@ -152,7 +153,7 @@ impl Vm {
                             self.push_schema_token(name);
                             if let Some(sub_instance) = obj.get(name) {
                                 self.push_instance_token(name);
-                                self.validate(root, sub_schema, sub_instance)?;
+                                self.validate(root, sub_schema, None, sub_instance)?;
                                 self.pop_instance_token();
                             } else {
                                 self.push_error()?;
@@ -166,7 +167,7 @@ impl Vm {
                             self.push_schema_token(name);
                             if let Some(sub_instance) = obj.get(name) {
                                 self.push_instance_token(name);
-                                self.validate(root, sub_schema, sub_instance)?;
+                                self.validate(root, sub_schema, None, sub_instance)?;
                                 self.pop_instance_token();
                             }
                             self.pop_schema_token();
@@ -181,7 +182,10 @@ impl Vm {
                             });
 
                             for name in obj.keys() {
-                                if !required.contains_key(name) && !optional.contains_key(name) {
+                                if parent_tag != Some(name)
+                                    && !required.contains_key(name)
+                                    && !optional.contains_key(name)
+                                {
                                     self.push_instance_token(name);
                                     self.push_error()?;
                                     self.pop_instance_token();
@@ -208,7 +212,7 @@ impl Vm {
                     if let Some(obj) = instance.as_object() {
                         for (name, sub_instance) in obj {
                             self.push_instance_token(name);
-                            self.validate(root, schema, sub_instance)?;
+                            self.validate(root, schema, None, sub_instance)?;
                             self.pop_instance_token();
                         }
                     } else {
@@ -216,6 +220,47 @@ impl Vm {
                     }
 
                     self.pop_schema_token();
+                }
+            }
+            form::Form::Discriminator(form::Discriminator {
+                nullable,
+                discriminator,
+                mapping,
+            }) => {
+                if !*nullable || !instance.is_null() {
+                    if let Some(obj) = instance.as_object() {
+                        if let Some(tag) = obj.get(discriminator) {
+                            if let Some(tag) = tag.as_str() {
+                                if let Some(schema) = mapping.get(tag) {
+                                    self.push_schema_token("mapping");
+                                    self.push_schema_token(tag);
+                                    self.validate(root, schema, Some(discriminator), instance)?;
+                                    self.pop_schema_token();
+                                    self.pop_schema_token();
+                                } else {
+                                    self.push_schema_token("mapping");
+                                    self.push_instance_token(discriminator);
+                                    self.push_error()?;
+                                    self.pop_instance_token();
+                                    self.pop_schema_token();
+                                }
+                            } else {
+                                self.push_schema_token("discriminator");
+                                self.push_instance_token(discriminator);
+                                self.push_error()?;
+                                self.pop_instance_token();
+                                self.pop_schema_token();
+                            }
+                        } else {
+                            self.push_schema_token("discriminator");
+                            self.push_error()?;
+                            self.pop_schema_token();
+                        }
+                    } else {
+                        self.push_schema_token("discriminator");
+                        self.push_error()?;
+                        self.pop_schema_token();
+                    }
                 }
             }
             _ => unimplemented!(),
