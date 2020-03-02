@@ -375,22 +375,6 @@ mod tests {
         )
     }
 
-    // #[test]
-    // fn from_empty_with_definitions_containing_definitions() {
-    //     let result: Result<Schema, SerdeConvertError> =
-    //         serde_json::from_value::<serde::Schema>(json!({
-    //             "definitions": {
-    //                 "foo": {
-    //                     "definitions": {}
-    //                 }
-    //             }
-    //         }))
-    //         .unwrap()
-    //         .try_into();
-
-    //     assert_eq!(Err(SerdeConvertError::NonRootDefinitions), result)
-    // }
-
     #[test]
     fn from_ref() {
         assert_eq!(
@@ -535,18 +519,6 @@ mod tests {
             result
         )
     }
-
-    // #[test]
-    // fn from_enum_with_empty_array() {
-    //     let result: Result<Schema, SerdeConvertError> =
-    //         serde_json::from_value::<serde::Schema>(json!({
-    //             "enum": [],
-    //         }))
-    //         .unwrap()
-    //         .try_into();
-
-    //     assert_eq!(Err(SerdeConvertError::EmptyEnum), result)
-    // }
 
     #[test]
     fn from_elements() {
@@ -727,27 +699,6 @@ mod tests {
         )
     }
 
-    // #[test]
-    // fn from_properties_with_repeated_keys() {
-    //     let result: Result<Schema, SerdeConvertError> =
-    //         serde_json::from_value::<serde::Schema>(json!({
-    //             "properties": {
-    //                 "foo": {},
-    //             },
-    //             "optionalProperties": {
-    //                 "foo": {},
-    //             },
-    //             "nullable": true,
-    //         }))
-    //         .unwrap()
-    //         .try_into();
-
-    //     assert_eq!(
-    //         Err(SerdeConvertError::RepeatedProperty("foo".to_owned())),
-    //         result
-    //     )
-    // }
-
     #[test]
     fn from_values() {
         assert_eq!(
@@ -856,6 +807,95 @@ mod tests {
                     .try_into();
             assert_eq!(Err(SerdeConvertError::InvalidForm), result);
         }
+    }
+
+    #[test]
+    fn from_empty_with_definitions_containing_definitions() {
+        let schema: Schema = serde_json::from_value::<serde::Schema>(json!({
+            "definitions": {
+                "foo": {
+                    "definitions": {"foo": {}}
+                }
+            },
+        }))
+        .unwrap()
+        .try_into()
+        .unwrap();
+
+        assert_eq!(Err(ValidateError::NonRootDefinitions), schema.validate());
+    }
+
+    #[test]
+    fn from_enum_with_empty_array() {
+        let schema: Schema = serde_json::from_value::<serde::Schema>(json!({
+            "enum": []
+        }))
+        .unwrap()
+        .try_into()
+        .unwrap();
+
+        assert_eq!(Err(ValidateError::EmptyEnum), schema.validate());
+    }
+
+    #[test]
+    fn from_properties_with_repeated_keys() {
+        let schema: Schema = serde_json::from_value::<serde::Schema>(json!({
+            "properties": {
+                "foo": {},
+            },
+            "optionalProperties": {
+                "foo": {},
+            },
+            "nullable": true,
+        }))
+        .unwrap()
+        .try_into()
+        .unwrap();
+
+        assert_eq!(
+            Err(ValidateError::RepeatedProperty("foo".to_owned())),
+            schema.validate()
+        );
+    }
+
+    #[test]
+    fn from_discriminator_with_non_properties_mapping() {
+        let schema: Schema = serde_json::from_value::<serde::Schema>(json!({
+            "discriminator": "foo",
+            "mapping": {
+                "foo": {
+                    "values": {}
+                }
+            }
+        }))
+        .unwrap()
+        .try_into()
+        .unwrap();
+
+        assert_eq!(
+            Err(ValidateError::MappingNotPropertiesForm),
+            schema.validate()
+        );
+    }
+
+    #[test]
+    fn from_discriminator_with_mapping_redefining_discriminator() {
+        let schema: Schema = serde_json::from_value::<serde::Schema>(json!({
+            "discriminator": "foo",
+            "mapping": {
+                "foo": {
+                    "properties": { "foo": {}}
+                }
+            }
+        }))
+        .unwrap()
+        .try_into()
+        .unwrap();
+
+        assert_eq!(
+            Err(ValidateError::RepeatedProperty("foo".to_owned())),
+            schema.validate()
+        );
     }
 
     #[test]
