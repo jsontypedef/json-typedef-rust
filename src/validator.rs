@@ -122,6 +122,19 @@ impl Vm {
                     self.pop_schema_token();
                 }
             }
+            form::Form::Enum(form::Enum { nullable, values }) => {
+                if !*nullable || !instance.is_null() {
+                    self.push_schema_token("enum");
+                    if let Some(s) = instance.as_str() {
+                        if !values.contains(s) {
+                            self.push_error()?;
+                        }
+                    } else {
+                        self.push_error()?;
+                    }
+                    self.pop_schema_token();
+                }
+            }
             form::Form::Elements(form::Elements { nullable, schema }) => {
                 if !*nullable || !instance.is_null() {
                     self.push_schema_token("elements");
@@ -263,7 +276,6 @@ impl Vm {
                     }
                 }
             }
-            _ => unimplemented!(),
         };
 
         Ok(())
