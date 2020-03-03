@@ -1,8 +1,10 @@
 [package]
 name = "jtd"
 version = "0.1.0"
+description = "A Rust implementation of JSON Type Definition"
 authors = ["JSON Type Definition Contributors"]
 edition = "2018"
+license = "MIT"
 
 [features]
 fuzz = ["arbitrary"]
