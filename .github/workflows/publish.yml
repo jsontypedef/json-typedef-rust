@@ -3,7 +3,7 @@ on:
     branches:
       - master
 jobs:
-  test:
+  publish:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
@@ -17,3 +17,5 @@ jobs:
         with:
           toolchain: stable
       - run: cargo publish
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
