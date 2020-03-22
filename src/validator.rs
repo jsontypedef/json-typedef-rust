@@ -192,12 +192,6 @@ impl Vm {
                         self.pop_schema_token();
 
                         if !*additional {
-                            self.push_schema_token(if *has_required {
-                                "properties"
-                            } else {
-                                "optionalProperties"
-                            });
-
                             for name in obj.keys() {
                                 if parent_tag != Some(name)
                                     && !required.contains_key(name)
@@ -208,8 +202,6 @@ impl Vm {
                                     self.pop_instance_token();
                                 }
                             }
-
-                            self.pop_schema_token();
                         }
                     } else {
                         self.push_schema_token(if *has_required {
