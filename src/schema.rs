@@ -24,6 +24,7 @@ pub enum ValidateError {
     NonRootDefinitions,
     EmptyEnum,
     RepeatedProperty(String),
+    MappingNullable,
     MappingNotPropertiesForm,
 }
 
@@ -139,8 +140,15 @@ impl Schema {
 
                     match &schema.form {
                         form::Form::Properties(form::Properties {
-                            required, optional, ..
+                            required,
+                            optional,
+                            nullable,
+                            ..
                         }) => {
+                            if *nullable {
+                                return Err(ValidateError::MappingNullable);
+                            }
+
                             if required.contains_key(discriminator)
                                 || optional.contains_key(discriminator)
                             {
