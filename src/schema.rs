@@ -11,6 +11,23 @@ pub struct Schema {
     pub metadata: HashMap<String, Value>,
 }
 
+#[cfg(feature = "fuzz")]
+impl arbitrary::Arbitrary for Schema {
+    fn arbitrary(u: &mut arbitrary::Unstructured<'_>) -> arbitrary::Result<Self> {
+        Ok(Schema {
+            definitions: arbitrary::Arbitrary::arbitrary(u)?,
+            form: arbitrary::Arbitrary::arbitrary(u)?,
+
+            // serde_json::Value does not derive Arbitrary. That's ok, because
+            // for the fuzz tests we're doing, we don't really care about
+            // manipulating arbitrary JSON values.
+            //
+            // So we'll always have metadata be None.
+            metadata: HashMap::new(),
+        })
+    }
+}
+
 #[derive(Debug, PartialEq)]
 pub enum SerdeConvertError {
     InvalidForm,

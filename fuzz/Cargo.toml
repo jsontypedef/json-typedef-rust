@@ -11,6 +11,7 @@ cargo-fuzz = true
 
 [dependencies]
 libfuzzer-sys = "0.3.1"
+serde_json = "1.0"
 
 [dependencies.jtd]
 path = ".."
@@ -23,3 +24,7 @@ members = ["."]
 [[bin]]
 name = "serde_schema_try_into"
 path = "fuzz_targets/serde_schema_try_into.rs"
+
+[[bin]]
+name = "validate"
+path = "fuzz_targets/validate.rs"

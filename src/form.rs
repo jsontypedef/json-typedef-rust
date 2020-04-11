@@ -4,6 +4,7 @@ use std::collections::HashSet;
 use std::str::FromStr;
 
 #[derive(Debug, PartialEq)]
+#[cfg_attr(feature = "fuzz", derive(arbitrary::Arbitrary))]
 pub enum Form {
     Empty,
     Ref(Ref),
@@ -22,18 +23,21 @@ impl Default for Form {
 }
 
 #[derive(Debug, PartialEq)]
+#[cfg_attr(feature = "fuzz", derive(arbitrary::Arbitrary))]
 pub struct Ref {
     pub nullable: bool,
     pub definition: String,
 }
 
 #[derive(Debug, PartialEq)]
+#[cfg_attr(feature = "fuzz", derive(arbitrary::Arbitrary))]
 pub struct Type {
     pub nullable: bool,
     pub type_value: TypeValue,
 }
 
 #[derive(Debug, PartialEq)]
+#[cfg_attr(feature = "fuzz", derive(arbitrary::Arbitrary))]
 pub enum TypeValue {
     Boolean,
     Float32,
@@ -70,18 +74,21 @@ impl FromStr for TypeValue {
 }
 
 #[derive(Debug, PartialEq)]
+#[cfg_attr(feature = "fuzz", derive(arbitrary::Arbitrary))]
 pub struct Enum {
     pub nullable: bool,
     pub values: HashSet<String>,
 }
 
 #[derive(Debug, PartialEq)]
+#[cfg_attr(feature = "fuzz", derive(arbitrary::Arbitrary))]
 pub struct Elements {
     pub nullable: bool,
     pub schema: Box<Schema>,
 }
 
 #[derive(Debug, PartialEq)]
+#[cfg_attr(feature = "fuzz", derive(arbitrary::Arbitrary))]
 pub struct Properties {
     pub nullable: bool,
     pub required: HashMap<String, Schema>,
@@ -91,12 +98,14 @@ pub struct Properties {
 }
 
 #[derive(Debug, PartialEq)]
+#[cfg_attr(feature = "fuzz", derive(arbitrary::Arbitrary))]
 pub struct Values {
     pub nullable: bool,
     pub schema: Box<Schema>,
 }
 
 #[derive(Debug, PartialEq)]
+#[cfg_attr(feature = "fuzz", derive(arbitrary::Arbitrary))]
 pub struct Discriminator {
     pub nullable: bool,
     pub discriminator: String,
