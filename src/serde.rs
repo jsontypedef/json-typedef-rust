@@ -7,18 +7,43 @@ use std::collections::HashMap;
 #[serde(rename_all = "camelCase")]
 #[serde(deny_unknown_fields)]
 pub struct Schema {
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub definitions: Option<HashMap<String, Schema>>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub nullable: Option<bool>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub ref_: Option<String>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub type_: Option<String>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub enum_: Option<Vec<String>>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub elements: Option<Box<Schema>>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub properties: Option<HashMap<String, Schema>>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub optional_properties: Option<HashMap<String, Schema>>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub additional_properties: Option<bool>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub values: Option<Box<Schema>>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub discriminator: Option<String>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub mapping: Option<HashMap<String, Schema>>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub metadata: Option<HashMap<String, Value>>,
 }
 
