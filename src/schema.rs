@@ -4,7 +4,7 @@ use serde_json::Value;
 use std::collections::{HashMap, HashSet};
 use std::convert::{TryFrom, TryInto};
 
-#[derive(Debug, Default, PartialEq)]
+#[derive(Clone, Debug, Default, PartialEq)]
 pub struct Schema {
     pub definitions: HashMap<String, Schema>,
     pub form: form::Form,
