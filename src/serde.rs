@@ -200,6 +200,19 @@ mod tests {
     use serde_json::json;
 
     #[test]
+    fn serialize_partial() {
+        // Fields are None by default. These shouldn't be serialized.
+        assert_eq!(
+            "{\"ref\":\"foo\"}",
+            serde_json::to_string(&super::Schema {
+                ref_: Some("foo".to_owned()),
+                ..Default::default()
+            })
+            .unwrap()
+        );
+    }
+
+    #[test]
     fn parse_empty() {
         assert_eq!(
             super::Schema::default(),
