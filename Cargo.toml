@@ -1,6 +1,6 @@
 [package]
 name = "jtd"
-version = "0.1.4"
+version = "0.2.0"
 description = "A Rust implementation of JSON Type Definition"
 authors = ["JSON Type Definition Contributors"]
 edition = "2018"
