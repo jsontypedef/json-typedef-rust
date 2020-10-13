@@ -1,14 +1,14 @@
 use crate::schema;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use std::collections::HashMap;
+use std::collections::BTreeMap;
 
 #[derive(Clone, Serialize, Deserialize, Debug, Default, PartialEq)]
 #[serde(rename_all = "camelCase")]
 #[serde(deny_unknown_fields)]
 pub struct Schema {
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub definitions: Option<HashMap<String, Schema>>,
+    pub definitions: Option<BTreeMap<String, Schema>>,
 
     #[serde(skip_serializing_if = "Option::is_none")]
     pub nullable: Option<bool>,
@@ -26,10 +26,10 @@ pub struct Schema {
     pub elements: Option<Box<Schema>>,
 
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub properties: Option<HashMap<String, Schema>>,
+    pub properties: Option<BTreeMap<String, Schema>>,
 
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub optional_properties: Option<HashMap<String, Schema>>,
+    pub optional_properties: Option<BTreeMap<String, Schema>>,
 
     #[serde(skip_serializing_if = "Option::is_none")]
     pub additional_properties: Option<bool>,
@@ -41,10 +41,10 @@ pub struct Schema {
     pub discriminator: Option<String>,
 
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub mapping: Option<HashMap<String, Schema>>,
+    pub mapping: Option<BTreeMap<String, Schema>>,
 
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub metadata: Option<HashMap<String, Value>>,
+    pub metadata: Option<BTreeMap<String, Value>>,
 }
 
 #[cfg(feature = "fuzz")]
