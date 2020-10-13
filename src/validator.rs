@@ -333,7 +333,7 @@ mod tests {
     use crate::SerdeSchema;
     use serde::{Deserialize, Serialize};
     use serde_json::json;
-    use std::collections::{HashMap, HashSet};
+    use std::collections::{BTreeMap, BTreeSet};
     use std::convert::TryInto;
 
     #[test]
@@ -391,14 +391,14 @@ mod tests {
             errors: Vec<TestCaseError>,
         }
 
-        #[derive(Serialize, Deserialize, PartialEq, Eq, Hash, Debug)]
+        #[derive(Serialize, Deserialize, PartialEq, Eq, PartialOrd, Ord, Debug)]
         #[serde(rename_all = "camelCase")]
         struct TestCaseError {
             instance_path: Vec<String>,
             schema_path: Vec<String>,
         }
 
-        let test_cases: HashMap<String, TestCase> =
+        let test_cases: BTreeMap<String, TestCase> =
             serde_json::from_str(include_str!("../json-typedef-spec/tests/validation.json"))
                 .unwrap();
 
@@ -413,7 +413,7 @@ mod tests {
                 max_errors: None,
             };
 
-            let errors: HashSet<_> = validator
+            let errors: BTreeSet<_> = validator
                 .validate(&schema, &test_case.instance)
                 .expect(&format!("validating: {}", name))
                 .into_iter()
@@ -424,7 +424,7 @@ mod tests {
                 .collect();
 
             assert_eq!(
-                test_case.errors.into_iter().collect::<HashSet<_>>(),
+                test_case.errors.into_iter().collect::<BTreeSet<_>>(),
                 errors,
                 "wrong set of errors returned for test case: {}",
                 name

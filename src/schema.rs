@@ -1,14 +1,14 @@
 use crate::form;
 use crate::serde;
 use serde_json::Value;
-use std::collections::{HashMap, HashSet};
+use std::collections::{BTreeMap, BTreeSet};
 use std::convert::{TryFrom, TryInto};
 
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct Schema {
-    pub definitions: HashMap<String, Schema>,
+    pub definitions: BTreeMap<String, Schema>,
     pub form: form::Form,
-    pub metadata: HashMap<String, Value>,
+    pub metadata: BTreeMap<String, Value>,
 }
 
 #[cfg(feature = "fuzz")]
@@ -23,7 +23,7 @@ impl arbitrary::Arbitrary for Schema {
             // manipulating arbitrary JSON values.
             //
             // So we'll always have metadata be None.
-            metadata: HashMap::new(),
+            metadata: BTreeMap::new(),
         })
     }
 }
@@ -205,7 +205,7 @@ impl TryFrom<serde::Schema> for Schema {
             return Err(SerdeConvertError::InvalidForm);
         }
 
-        let mut definitions = HashMap::new();
+        let mut definitions = BTreeMap::new();
         for (name, sub_schema) in schema.definitions.unwrap_or_default() {
             definitions.insert(name, sub_schema.try_into()?);
         }
@@ -235,7 +235,7 @@ impl TryFrom<serde::Schema> for Schema {
         }
 
         if let Some(enum_) = schema.enum_ {
-            let mut values = HashSet::new();
+            let mut values = BTreeSet::new();
             for val in enum_ {
                 if values.contains(&val) {
                     return Err(SerdeConvertError::DuplicatedEnumValue(val));
@@ -268,12 +268,12 @@ impl TryFrom<serde::Schema> for Schema {
         if schema.properties.is_some() || schema.optional_properties.is_some() {
             let has_required = schema.properties.is_some();
 
-            let mut required = HashMap::new();
+            let mut required = BTreeMap::new();
             for (name, sub_schema) in schema.properties.unwrap_or_default() {
                 required.insert(name, sub_schema.try_into()?);
             }
 
-            let mut optional = HashMap::new();
+            let mut optional = BTreeMap::new();
             for (name, sub_schema) in schema.optional_properties.unwrap_or_default() {
                 optional.insert(name, sub_schema.try_into()?);
             }
@@ -303,7 +303,7 @@ impl TryFrom<serde::Schema> for Schema {
         }
 
         if let Some(discriminator) = schema.discriminator {
-            let mut mapping = HashMap::new();
+            let mut mapping = BTreeMap::new();
             for (name, sub_schema) in schema.mapping.unwrap() {
                 mapping.insert(name, sub_schema.try_into()?);
             }
@@ -605,7 +605,7 @@ mod tests {
                     required: vec![("foo".to_owned(), Default::default())]
                         .into_iter()
                         .collect(),
-                    optional: HashMap::new(),
+                    optional: BTreeMap::new(),
                     additional: false,
                     has_required: true,
                 }),
@@ -627,7 +627,7 @@ mod tests {
             Ok(Schema {
                 form: form::Form::Properties(form::Properties {
                     nullable: false,
-                    required: HashMap::new(),
+                    required: BTreeMap::new(),
                     optional: vec![("foo".to_owned(), Default::default())]
                         .into_iter()
                         .collect(),
@@ -909,7 +909,7 @@ mod tests {
 
     #[test]
     fn spec_invalid_schemas_suite() {
-        let test_cases: HashMap<String, Value> = serde_json::from_str(include_str!(
+        let test_cases: BTreeMap<String, Value> = serde_json::from_str(include_str!(
             "../json-typedef-spec/tests/invalid_schemas.json"
         ))
         .unwrap();

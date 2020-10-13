@@ -1,6 +1,6 @@
 use crate::schema::Schema;
-use std::collections::HashMap;
-use std::collections::HashSet;
+use std::collections::BTreeMap;
+use std::collections::BTreeSet;
 use std::str::FromStr;
 
 #[derive(Clone, Debug, PartialEq)]
@@ -77,7 +77,7 @@ impl FromStr for TypeValue {
 #[cfg_attr(feature = "fuzz", derive(arbitrary::Arbitrary))]
 pub struct Enum {
     pub nullable: bool,
-    pub values: HashSet<String>,
+    pub values: BTreeSet<String>,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -91,8 +91,8 @@ pub struct Elements {
 #[cfg_attr(feature = "fuzz", derive(arbitrary::Arbitrary))]
 pub struct Properties {
     pub nullable: bool,
-    pub required: HashMap<String, Schema>,
-    pub optional: HashMap<String, Schema>,
+    pub required: BTreeMap<String, Schema>,
+    pub optional: BTreeMap<String, Schema>,
     pub additional: bool,
     pub has_required: bool,
 }
@@ -109,7 +109,7 @@ pub struct Values {
 pub struct Discriminator {
     pub nullable: bool,
     pub discriminator: String,
-    pub mapping: HashMap<String, Schema>,
+    pub mapping: BTreeMap<String, Schema>,
 }
 
 #[cfg(test)]
