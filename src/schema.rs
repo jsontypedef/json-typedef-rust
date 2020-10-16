@@ -110,8 +110,23 @@ impl Schema {
     }
 
     fn validate_with_root(&self, root: Option<&Self>) -> Result<(), ValidateError> {
-        if root.is_none() && !self.definitions.is_empty() {
+        // If root is non-None, then self is not the root schema. We should
+        // therefore not tolerate definitions being placed on this schema.
+        if root.is_some() && !self.definitions.is_empty() {
             return Err(ValidateError::NonRootDefinitions);
+        }
+
+        // This root variable is the one we will use for recursive calls to
+        // validate_with_root.
+        //
+        // If we are at the top-level call of validate_with_root (invoked by the
+        // public validate method) wherein root is None, then root will be
+        // Some(self) for the recursive calls, since we ourselves are the root.
+        let root = root.or(Some(self));
+
+        // Validate each definition, if any.
+        for sub_schema in self.definitions.values() {
+            sub_schema.validate_with_root(root)?;
         }
 
         match &self.form {
@@ -122,7 +137,9 @@ impl Schema {
                 }
             }
             form::Form::Ref(form::Ref { definition, .. }) => {
-                if !root.unwrap_or(&self).definitions.contains_key(definition) {
+                // This unwrap is safe because the assignment to root above
+                // guarantees root will be non-None.
+                if !root.unwrap().definitions.contains_key(definition) {
                     return Err(ValidateError::NoSuchDefinition(definition.clone()));
                 }
             }
