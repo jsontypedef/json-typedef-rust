@@ -403,10 +403,12 @@ mod tests {
                 .unwrap();
 
         for (name, test_case) in test_cases {
-            let schema = test_case
+            let schema: Schema = test_case
                 .schema
                 .try_into()
                 .expect(&format!("parsing schema: {}", name));
+
+            schema.validate().expect(&format!("validating schema: {}", name));
 
             let validator = Validator {
                 max_depth: None,
