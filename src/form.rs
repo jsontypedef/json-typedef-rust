@@ -4,7 +4,6 @@ use std::collections::BTreeSet;
 use std::str::FromStr;
 
 #[derive(Clone, Debug, PartialEq)]
-#[cfg_attr(feature = "fuzz", derive(arbitrary::Arbitrary))]
 pub enum Form {
     Empty,
     Ref(Ref),
@@ -23,21 +22,18 @@ impl Default for Form {
 }
 
 #[derive(Clone, Debug, PartialEq)]
-#[cfg_attr(feature = "fuzz", derive(arbitrary::Arbitrary))]
 pub struct Ref {
     pub nullable: bool,
     pub definition: String,
 }
 
 #[derive(Clone, Debug, PartialEq)]
-#[cfg_attr(feature = "fuzz", derive(arbitrary::Arbitrary))]
 pub struct Type {
     pub nullable: bool,
     pub type_value: TypeValue,
 }
 
 #[derive(Clone, Debug, PartialEq)]
-#[cfg_attr(feature = "fuzz", derive(arbitrary::Arbitrary))]
 pub enum TypeValue {
     Boolean,
     Float32,
@@ -74,21 +70,18 @@ impl FromStr for TypeValue {
 }
 
 #[derive(Clone, Debug, PartialEq)]
-#[cfg_attr(feature = "fuzz", derive(arbitrary::Arbitrary))]
 pub struct Enum {
     pub nullable: bool,
     pub values: BTreeSet<String>,
 }
 
 #[derive(Clone, Debug, PartialEq)]
-#[cfg_attr(feature = "fuzz", derive(arbitrary::Arbitrary))]
 pub struct Elements {
     pub nullable: bool,
     pub schema: Box<Schema>,
 }
 
 #[derive(Clone, Debug, PartialEq)]
-#[cfg_attr(feature = "fuzz", derive(arbitrary::Arbitrary))]
 pub struct Properties {
     pub nullable: bool,
     pub required: BTreeMap<String, Schema>,
@@ -98,14 +91,12 @@ pub struct Properties {
 }
 
 #[derive(Clone, Debug, PartialEq)]
-#[cfg_attr(feature = "fuzz", derive(arbitrary::Arbitrary))]
 pub struct Values {
     pub nullable: bool,
     pub schema: Box<Schema>,
 }
 
 #[derive(Clone, Debug, PartialEq)]
-#[cfg_attr(feature = "fuzz", derive(arbitrary::Arbitrary))]
 pub struct Discriminator {
     pub nullable: bool,
     pub discriminator: String,

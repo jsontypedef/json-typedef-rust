@@ -47,33 +47,6 @@ pub struct Schema {
     pub metadata: Option<BTreeMap<String, Value>>,
 }
 
-#[cfg(feature = "fuzz")]
-impl arbitrary::Arbitrary for Schema {
-    fn arbitrary(u: &mut arbitrary::Unstructured<'_>) -> arbitrary::Result<Self> {
-        Ok(Schema {
-            definitions: arbitrary::Arbitrary::arbitrary(u)?,
-            nullable: arbitrary::Arbitrary::arbitrary(u)?,
-            ref_: arbitrary::Arbitrary::arbitrary(u)?,
-            type_: arbitrary::Arbitrary::arbitrary(u)?,
-            enum_: arbitrary::Arbitrary::arbitrary(u)?,
-            elements: arbitrary::Arbitrary::arbitrary(u)?,
-            properties: arbitrary::Arbitrary::arbitrary(u)?,
-            optional_properties: arbitrary::Arbitrary::arbitrary(u)?,
-            additional_properties: arbitrary::Arbitrary::arbitrary(u)?,
-            values: arbitrary::Arbitrary::arbitrary(u)?,
-            discriminator: arbitrary::Arbitrary::arbitrary(u)?,
-            mapping: arbitrary::Arbitrary::arbitrary(u)?,
-
-            // serde_json::Value does not derive Arbitrary. That's ok, because
-            // for the fuzz tests we're doing, we don't really care about
-            // manipulating arbitrary JSON values.
-            //
-            // So we'll always have metadata be None.
-            metadata: None,
-        })
-    }
-}
-
 impl From<schema::Schema> for Schema {
     fn from(schema: schema::Schema) -> Schema {
         use crate::form;
