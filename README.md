@@ -123,7 +123,7 @@ jsontypedef.com](https://jsontypedef.com).
 Install this crate by adding the following to your `Cargo.toml`:
 
 ```toml
-jtd = "0.2"
+jtd = "0.3"
 ```
 
 ## Usage
