@@ -1,4 +1,4 @@
-# json-typedef-rust: A Rust implementation of JSON Typedef ![Crates.io](https://img.shields.io/crates/v/jtd) ![Docs.rs](https://docs.rs/jtd/badge.svg)
+# jtd: JSON Typedef for Rust ![Crates.io](https://img.shields.io/crates/v/jtd) ![Docs.rs](https://docs.rs/jtd/badge.svg)
 
 [JSON Type Definition](https://jsontypedef.com), aka
 [RFC8927](https://tools.ietf.org/html/rfc8927), is an easy-to-learn,
