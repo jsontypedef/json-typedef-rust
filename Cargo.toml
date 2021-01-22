@@ -1,16 +1,13 @@
 [package]
 name = "jtd"
-version = "0.2.1"
+version = "0.3.0"
 description = "A Rust implementation of JSON Type Definition"
 authors = ["JSON Type Definition Contributors"]
 edition = "2018"
 license = "MIT"
 
-[features]
-fuzz = ["arbitrary"]
-
 [dependencies]
-arbitrary = { version = "0.4.0", features = ["derive"], optional = true }
 chrono = "0.4"
-serde = { version = "1.0", features = ["derive"] }
-serde_json = "1.0"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+thiserror = "1"
