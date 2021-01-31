@@ -576,6 +576,201 @@ const VALID_FORM_SIGNATURES: [[bool; 10]; 13] = [
 ];
 
 impl Schema {
+    /// Converts a [`Schema`] into a [`SerdeSchema`].
+    ///
+    /// ```
+    /// use jtd::{Schema, SerdeSchema, Type};
+    ///
+    /// assert_eq!(
+    ///     SerdeSchema {
+    ///         type_: Some("uint8".to_owned()),
+    ///         ..Default::default()
+    ///     },
+    ///     Schema::Type {
+    ///         definitions: Default::default(),
+    ///         metadata: Default::default(),
+    ///         nullable: false,
+    ///         type_: Type::Uint8,
+    ///     }.into_serde_schema(),
+    /// );
+    /// ```
+    pub fn into_serde_schema(self) -> SerdeSchema {
+        let mut serde_schema: SerdeSchema = Default::default();
+
+        match self {
+            Schema::Empty {
+                definitions,
+                metadata,
+            } => {
+                serde_schema.definitions = Self::definitions_into_serde_schema(definitions);
+                serde_schema.metadata = Self::metadata_into_serde_schema(metadata);
+            }
+
+            Schema::Ref {
+                definitions,
+                metadata,
+                nullable,
+                ref_,
+            } => {
+                serde_schema.definitions = Self::definitions_into_serde_schema(definitions);
+                serde_schema.metadata = Self::metadata_into_serde_schema(metadata);
+                serde_schema.nullable = Self::nullable_into_serde_schema(nullable);
+                serde_schema.ref_ = Some(ref_);
+            }
+
+            Schema::Type {
+                definitions,
+                metadata,
+                nullable,
+                type_,
+            } => {
+                serde_schema.definitions = Self::definitions_into_serde_schema(definitions);
+                serde_schema.metadata = Self::metadata_into_serde_schema(metadata);
+                serde_schema.nullable = Self::nullable_into_serde_schema(nullable);
+                serde_schema.type_ = Some(
+                    match type_ {
+                        Type::Boolean => "boolean",
+                        Type::Int8 => "int8",
+                        Type::Uint8 => "uint8",
+                        Type::Int16 => "int16",
+                        Type::Uint16 => "uint16",
+                        Type::Int32 => "int32",
+                        Type::Uint32 => "uint32",
+                        Type::Float32 => "float32",
+                        Type::Float64 => "float64",
+                        Type::String => "string",
+                        Type::Timestamp => "timestamp",
+                    }
+                    .to_owned(),
+                );
+            }
+
+            Schema::Enum {
+                definitions,
+                metadata,
+                nullable,
+                enum_,
+            } => {
+                serde_schema.definitions = Self::definitions_into_serde_schema(definitions);
+                serde_schema.metadata = Self::metadata_into_serde_schema(metadata);
+                serde_schema.nullable = Self::nullable_into_serde_schema(nullable);
+                serde_schema.enum_ = Some(enum_.into_iter().collect());
+            }
+
+            Schema::Elements {
+                definitions,
+                metadata,
+                nullable,
+                elements,
+            } => {
+                serde_schema.definitions = Self::definitions_into_serde_schema(definitions);
+                serde_schema.metadata = Self::metadata_into_serde_schema(metadata);
+                serde_schema.nullable = Self::nullable_into_serde_schema(nullable);
+                serde_schema.elements = Some(Box::new(elements.into_serde_schema()));
+            }
+
+            Schema::Properties {
+                definitions,
+                metadata,
+                nullable,
+                properties,
+                optional_properties,
+                properties_is_present,
+                additional_properties,
+            } => {
+                serde_schema.definitions = Self::definitions_into_serde_schema(definitions);
+                serde_schema.metadata = Self::metadata_into_serde_schema(metadata);
+                serde_schema.nullable = Self::nullable_into_serde_schema(nullable);
+
+                if properties_is_present {
+                    serde_schema.properties = Some(
+                        properties
+                            .into_iter()
+                            .map(|(k, v)| (k, v.into_serde_schema()))
+                            .collect(),
+                    );
+                }
+
+                if !optional_properties.is_empty() {
+                    serde_schema.optional_properties = Some(
+                        optional_properties
+                            .into_iter()
+                            .map(|(k, v)| (k, v.into_serde_schema()))
+                            .collect(),
+                    );
+                }
+
+                if additional_properties {
+                    serde_schema.additional_properties = Some(additional_properties);
+                }
+            }
+
+            Schema::Values {
+                definitions,
+                metadata,
+                nullable,
+                values,
+            } => {
+                serde_schema.definitions = Self::definitions_into_serde_schema(definitions);
+                serde_schema.metadata = Self::metadata_into_serde_schema(metadata);
+                serde_schema.nullable = Self::nullable_into_serde_schema(nullable);
+                serde_schema.values = Some(Box::new(values.into_serde_schema()));
+            }
+
+            Schema::Discriminator {
+                definitions,
+                metadata,
+                nullable,
+                discriminator,
+                mapping,
+            } => {
+                serde_schema.definitions = Self::definitions_into_serde_schema(definitions);
+                serde_schema.metadata = Self::metadata_into_serde_schema(metadata);
+                serde_schema.nullable = Self::nullable_into_serde_schema(nullable);
+                serde_schema.discriminator = Some(discriminator);
+                serde_schema.mapping = Some(
+                    mapping
+                        .into_iter()
+                        .map(|(k, v)| (k, v.into_serde_schema()))
+                        .collect(),
+                );
+            }
+        }
+
+        serde_schema
+    }
+
+    fn definitions_into_serde_schema(
+        definitions: Definitions,
+    ) -> Option<BTreeMap<String, SerdeSchema>> {
+        if definitions.is_empty() {
+            None
+        } else {
+            Some(
+                definitions
+                    .into_iter()
+                    .map(|(k, v)| (k, v.into_serde_schema()))
+                    .collect(),
+            )
+        }
+    }
+
+    fn metadata_into_serde_schema(metadata: Metadata) -> Option<BTreeMap<String, Value>> {
+        if metadata.is_empty() {
+            None
+        } else {
+            Some(metadata)
+        }
+    }
+
+    fn nullable_into_serde_schema(nullable: bool) -> Option<bool> {
+        if nullable {
+            Some(true)
+        } else {
+            None
+        }
+    }
+
     /// Constructs a [`Schema`] from a [`SerdeSchema`].
     ///
     /// ```
